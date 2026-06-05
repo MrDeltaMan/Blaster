@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Blaster Layout Editor
+Comment=Configurador de Macros para Gamepad
+Exec=python3 /opt/Blaster/main.py
+Icon=input-gaming
+Path=/opt/Blaster/
+Terminal=false
+Categories=Utility;Settings;

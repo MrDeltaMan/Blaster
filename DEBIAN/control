@@ -1,0 +1,11 @@
+Package: blaster-macro-manager
+Version: 0.1.0~beta1
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: python3, python3-evdev, python3-pyqt6
+Maintainer: Mr.Delta-Man <handra.90.80@gmail.com>
+Description: Blaster Gamepad Macro Generator (Prototype Beta)
+ Um prototipo aberto e automatizado de gerenciamento de macros para gamepads.
+ Desenvolvido como um norte conceitual para automacao de controles no Linux Mint.
+ Sinta-se livre para explorar e modificar o codigo em /opt/Blaster/.

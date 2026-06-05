@@ -1,0 +1,7 @@
+#!/bin/bash
+# Garante que qualquer usuário do sistema possa editar os códigos do protótipo
+chmod -R 777 /opt/Blaster
+echo "========================================================"
+echo " Blaster Beta 0.1 Instalado! "
+echo " O codigo fonte esta livre para edicao em: /opt/Blaster/"
+echo "========================================================"
