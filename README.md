@@ -1,4 +1,4 @@
-# Blaster - Gamepad Macro Generator (Beta 0.1)
+# Blaster - Gamepad Macro Generator (Beta 0.2)
 
 O **Blaster** é um protótipo conceitual e aberto de um motor de macros em segundo plano para gamepads e controles de videogame no Linux Mint. 
 
