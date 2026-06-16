@@ -1,0 +1,12 @@
+#!/bin/bash
+
+echo "[-] Removendo correção de boot do controle de Xbox..."
+
+# Desativa o serviço e ignora erros se ele já não existir
+systemctl disable fix-xbox-controller.service >/dev/null 2>&1 || true
+
+# Deleta o arquivo do serviço
+rm -f /etc/systemd/system/fix-xbox-controller.service
+
+# Atualiza o systemd
+systemctl daemon-reload

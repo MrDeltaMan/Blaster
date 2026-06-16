@@ -2,35 +2,70 @@ import sys
 import time
 import json
 import select
+import os
+
+# Força o Qt a tentar o Wayland nativo. Se falhar, ele recua para o XWayland (X11) automaticamente.
+if "QT_QPA_PLATFORM" not in os.environ:
+    os.environ["QT_QPA_PLATFORM"] = "wayland;xcb"
+
 from pathlib import Path
 from typing import Dict, List, Optional, Any
-from PyQt6.QtGui import QIcon, QGuiApplication
+from PyQt6.QtGui import QIcon
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
     QLabel, QLineEdit, QComboBox, QListWidget, QDoubleSpinBox,
-    QGroupBox, QListWidgetItem, QMessageBox, QSplitter
+    QGroupBox, QListWidgetItem, QMessageBox, QSplitter,
+    QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import QThread, pyqtSignal, Qt
 from evdev import InputDevice, list_devices, ecodes
 
-# Usando pathlib para gestão moderna de caminhos
+# ==============================================================================
+# 📝 LISTA DE COMANDOS DA COMUNIDADE
+# ==============================================================================
+COMANDOS_COMUNIDADE = [
+    {
+        "comando": "blaster://toggle_catraca",
+        "descricao": "Função Catraca: Pausa ou retoma instantaneamente todas as macros em segundo plano. Envia notificação nativa no desktop.",
+        "ambiente": "Universal (X11 / Wayland)"
+    },
+    {
+        "comando": "flatpak run org.pegasus_frontend.Pegasus",
+        "descricao": "Inicializa o Pegasus Frontend em modo tela cheia para navegação com o Gamepad.",
+        "ambiente": "Universal (X11 / Wayland)"
+    },
+    {
+        "comando": "amixer -D pulse sset Master 5%+",
+        "descricao": "Aumenta o volume mestre do áudio do sistema em 5%.",
+        "ambiente": "Universal (X11 / Wayland)"
+    },
+    {
+        "comando": "amixer -D pulse sset Master 5%-",
+        "descricao": "Diminui o volume mestre do áudio do sistema em 5%.",
+        "ambiente": "Universal (X11 / Wayland)"
+    },
+    {
+        "comando": "pkill -9 -f pegasus",
+        "descricao": "Força o encerramento do processo do Pegasus Frontend caso o app trave ou congele.",
+        "ambiente": "Universal (X11 / Wayland)"
+    }
+]
+
 CONFIG_DIR = Path.home() / ".config" / "blaster"
 ARQUIVO_CONFIG = CONFIG_DIR / "blaster_config.json"
 
-# Definição inteligente do caminho do ícone (Prioridade para /opt, fallback para .config)
 PATH_ICONE_OPT = Path("/opt/Blaster/blaster.svg")
 PATH_ICONE_FALLBACK = CONFIG_DIR / "blaster.svg"
 CAMINHO_ICONE_FINAL = PATH_ICONE_OPT if PATH_ICONE_OPT.exists() else PATH_ICONE_FALLBACK
 
 ESTILO_DARK = """
- QWidget {
+QWidget {
     background-color: #1E1E2E;
     color: #CDD6F4;
     font-family: 'Segoe UI', Arial, sans-serif;
     font-size: 13px;
 }
-
 QGroupBox {
     border: 1px solid #313244;
     border-radius: 14px;
@@ -38,14 +73,12 @@ QGroupBox {
     font-weight: bold;
     background-color: #1B1B2A;
 }
-
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 10px;
     color: #89B4FA;
 }
-
 QLineEdit, QDoubleSpinBox, QComboBox {
     background-color: #313244;
     border: 1px solid #45475A;
@@ -53,16 +86,13 @@ QLineEdit, QDoubleSpinBox, QComboBox {
     padding: 9px 10px;
     color: #CDD6F4;
 }
-
 QLineEdit:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border: 1px solid #89B4FA;
 }
-
 QComboBox::drop-down {
     border-left: 1px solid #45475A;
     width: 24px;
 }
-
 QPushButton {
     background-color: #45475A;
     color: #CDD6F4;
@@ -71,15 +101,12 @@ QPushButton {
     padding: 10px 12px;
     font-weight: bold;
 }
-
 QPushButton:hover {
     background-color: #585B70;
 }
-
 QPushButton:pressed {
     background-color: #313244;
 }
-
 QListWidget {
     background-color: #181825;
     border: 1px solid #313244;
@@ -87,50 +114,41 @@ QListWidget {
     padding: 6px;
     outline: 0;
 }
-
 QListWidget::item {
     padding: 10px;
     margin: 4px 2px;
     border-bottom: 1px solid #313244;
     border-radius: 10px;
 }
-
 QListWidget::item:selected {
     background-color: #313244;
     color: #89B4FA;
 }
-
 QScrollBar:vertical {
     background: #181825;
     width: 10px;
     margin: 12px 2px 12px 2px;
     border-radius: 5px;
 }
-
 QScrollBar::handle:vertical {
     background: #45475A;
     min-height: 30px;
     border-radius: 5px;
 }
-
 QScrollBar::handle:vertical:hover {
     background: #585B70;
 }
-
 QLabel#subtitle {
     color: #9399B2;
 }
-
 QLabel#status_ok {
     color: #A6E3A1;
     font-weight: 700;
 }
-
 QLabel#status_bad {
     color: #F38BA8;
     font-weight: 700;
 }
-
 QLabel#combo_box {
     font-size: 14px;
     color: #CDD6F4;
@@ -143,7 +161,49 @@ QToolTip {
     background-color: #1E1E2E;
     color: #CDD6F4;
     border: 1px solid #45475A;
-} 
+}
+QTabWidget::pane {
+    border: 1px solid #313244;
+    border-radius: 12px;
+    background-color: #1E1E2E;
+}
+QTabBar::tab {
+    background-color: #313244;
+    color: #CDD6F4;
+    padding: 10px 18px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    margin-right: 4px;
+    font-weight: bold;
+}
+QTabBar::tab:selected {
+    background-color: #1E1E2E;
+    color: #89B4FA;
+    border: 1px solid #313244;
+    border-bottom-color: #1E1E2E;
+}
+QTabBar::tab:hover:!selected {
+    background-color: #45475A;
+}
+QTableWidget {
+    background-color: #181825;
+    border: 1px solid #313244;
+    border-radius: 12px;
+    gridline-color: #313244;
+    color: #CDD6F4;
+    outline: 0;
+}
+QHeaderView::section {
+    background-color: #313244;
+    color: #89B4FA;
+    padding: 8px;
+    border: 1px solid #181825;
+    font-weight: bold;
+}
+QTableWidget::item:selected {
+    background-color: #313244;
+    color: #CDD6F4;
+}
 """
 
 class GamepadListener(QThread):
@@ -163,43 +223,48 @@ class GamepadListener(QThread):
             if not self.device_path:
                 self.status_conexao.emit("Nenhum controle selecionado")
                 for _ in range(10):
-                    if not self.rodando: return
+                    if not self.rodando:
+                        return
                     time.sleep(0.1)
                 continue
 
             try:
-                dev = InputDevice(self.device_path)
+                # Resolve links simbólicos (udev por ID) de forma transparente para o evdev
+                caminho_aberto = self.device_path
+                path_real = os.path.realpath(caminho_aberto) if os.path.islink(caminho_aberto) else caminho_aberto
+                
+                dev = InputDevice(path_real)
                 self.status_conexao.emit(f"Escutando: {dev.name}")
 
                 lt_pressionado = False
                 rt_pressionado = False
 
-                while self.rodando and self.device_path == dev.path:
+                while self.rodando and self.device_path == caminho_aberto:
                     r, _, _ = select.select([dev], [], [], 0.2)
-                    if not r: continue
+                    if not r:
+                        continue
 
                     for event in dev.read():
                         if event.type == ecodes.EV_KEY and event.value == 1:
                             nome_botao = ecodes.keys.get(event.code, f"KEY_{event.code}")
-                            if isinstance(nome_botao, list): nome_botao = nome_botao[0]
+                            if isinstance(nome_botao, list):
+                                nome_botao = nome_botao[0]
                             self.botao_pressionado.emit(str(nome_botao))
 
                         elif event.type == ecodes.EV_ABS:
-                            # DPAD
                             if event.code == ecodes.ABS_HAT0X and event.value != 0:
                                 self.botao_pressionado.emit("DPAD_RIGHT" if event.value == 1 else "DPAD_LEFT")
                             elif event.code == ecodes.ABS_HAT0Y and event.value != 0:
                                 self.botao_pressionado.emit("DPAD_DOWN" if event.value == 1 else "DPAD_UP")
-                            
-                            # Triggers
-                            elif event.code in (ecodes.ABS_Z, ecodes.ABS_GAS):
+
+                            elif event.code in (ecodes.ABS_Z, getattr(ecodes, "ABS_GAS", -1)):
                                 if event.value > 150 and not lt_pressionado:
                                     lt_pressionado = True
                                     self.botao_pressionado.emit("GATILHO_ESQUERDO")
                                 elif event.value < 50:
                                     lt_pressionado = False
 
-                            elif event.code in (ecodes.ABS_RZ, ecodes.ABS_BRAKE):
+                            elif event.code in (ecodes.ABS_RZ, getattr(ecodes, "ABS_BRAKE", -1)):
                                 if event.value > 150 and not rt_pressionado:
                                     rt_pressionado = True
                                     self.botao_pressionado.emit("GATILHO_DIREITO")
@@ -211,7 +276,6 @@ class GamepadListener(QThread):
                 self.device_path = None
                 time.sleep(1)
 
-
 class BlasterApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -221,13 +285,12 @@ class BlasterApp(QWidget):
         self.init_ui()
         self.iniciar_thread()
         self.atualizar_lista_controles()
+        self.carregar_dispositivo_salvo()  # FIX: Carrega automaticamente ao iniciar o painel
         self.carregar_macros_na_lista_visual()
         self.verificar_e_instalar_autostart()
 
     def init_ui(self) -> None:
         self.setWindowTitle("Blaster Pro - Gamepad Macro Generator")
-        
-        # Carrega o ícone da janela usando o caminho dinâmico/robusto
         if CAMINHO_ICONE_FINAL.exists():
             self.setWindowIcon(QIcon(str(CAMINHO_ICONE_FINAL)))
 
@@ -238,10 +301,9 @@ class BlasterApp(QWidget):
         layout_principal.setContentsMargins(16, 16, 16, 16)
         layout_principal.setSpacing(14)
 
-        # Barra Superior
         barra_topo = QGroupBox("🎮 Conexão do Controle")
         layout_topo = QHBoxLayout(barra_topo)
-        
+
         self.combo_controles = QComboBox(self)
         self.combo_controles.setMinimumWidth(360)
         self.combo_controles.currentIndexChanged.connect(self.ao_selecionar_controle)
@@ -256,11 +318,20 @@ class BlasterApp(QWidget):
         layout_topo.addWidget(self.label_status, 2)
         layout_principal.addWidget(barra_topo)
 
-        # Corpo
+        self.abas = QTabWidget(self)
+        self.aba_gerenciador = QWidget()
+        self.aba_comunidade = QWidget()
+
+        layout_aba_gerenciador = QVBoxLayout(self.aba_gerenciador)
+        layout_aba_gerenciador.setContentsMargins(0, 4, 0, 0)
+
+        layout_aba_comunidade = QVBoxLayout(self.aba_comunidade)
+        layout_aba_comunidade.setContentsMargins(12, 16, 12, 12)
+        layout_aba_comunidade.setSpacing(14)
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # Painel Esquerdo
         painel_lista = QGroupBox("⌨️ Macros Mapeadas")
         layout_lista_painel = QVBoxLayout(painel_lista)
 
@@ -278,7 +349,6 @@ class BlasterApp(QWidget):
         self.botao_deletar.clicked.connect(self.ao_deletar_macro)
         layout_lista_painel.addWidget(self.botao_deletar)
 
-        # Painel Direito
         painel_editor = QGroupBox("⚙️ Configuração da Macro")
         layout_editor = QVBoxLayout(painel_editor)
 
@@ -293,7 +363,7 @@ class BlasterApp(QWidget):
         self.botao_gravar.clicked.connect(self.alternar_gravacao)
         layout_editor.addWidget(self.botao_gravar)
 
-        self.label_combo_visual = QLabel("Combo atual: (clique em ‘Gravar combo’)", self)
+        self.label_combo_visual = QLabel("Combo atual: (clique em 'Gravar combo')", self)
         self.label_combo_visual.setObjectName("combo_box")
         layout_editor.addWidget(self.label_combo_visual)
 
@@ -325,7 +395,34 @@ class BlasterApp(QWidget):
         splitter.addWidget(painel_lista)
         splitter.addWidget(painel_editor)
         splitter.setSizes([420, 560])
-        layout_principal.addWidget(splitter, 1)
+        layout_aba_gerenciador.addWidget(splitter)
+
+        lbl_comunidade_titulo = QLabel("Selecione um comando pronto abaixo para preencher automaticamente o construtor:", self)
+        lbl_comunidade_titulo.setObjectName("subtitle")
+        layout_aba_comunidade.addWidget(lbl_comunidade_titulo)
+
+        self.tabela_comunidade = QTableWidget(len(COMANDOS_COMUNIDADE), 3, self)
+        self.tabela_comunidade.setHorizontalHeaderLabels(["Comando em Shell", "Descrição da Função", "Ambiente Recomendado"])
+        self.tabela_comunidade.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabela_comunidade.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.tabela_comunidade.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.tabela_comunidade.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.tabela_comunidade.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+
+        for i, item in enumerate(COMANDOS_COMUNIDADE):
+            self.tabela_comunidade.setItem(i, 0, QTableWidgetItem(item["comando"]))
+            self.tabela_comunidade.setItem(i, 1, QTableWidgetItem(item["descricao"]))
+            self.tabela_comunidade.setItem(i, 2, QTableWidgetItem(item["ambiente"]))
+        layout_aba_comunidade.addWidget(self.tabela_comunidade)
+
+        self.btn_injetar = QPushButton("Injetar comando selecionado no Construtor de Macros 📥", self)
+        self.btn_injetar.setStyleSheet("background-color: #A6E3A1; color: #11111B; font-weight: bold; font-size: 13px;")
+        self.btn_injetar.clicked.connect(self.injetar_comando_comunidade)
+        layout_aba_comunidade.addWidget(self.btn_injetar)
+
+        self.abas.addTab(self.aba_gerenciador, "🛠️ Gerenciador")
+        self.abas.addTab(self.aba_comunidade, "🌐 Lista da Comunidade")
+        layout_principal.addWidget(self.abas, 1)
 
         self.label_aviso_daemon = QLabel("", self)
         self.label_aviso_daemon.setWordWrap(True)
@@ -335,7 +432,6 @@ class BlasterApp(QWidget):
         pasta_autostart = Path.home() / ".config" / "autostart"
         pasta_autostart.mkdir(parents=True, exist_ok=True)
         arquivo_desktop = pasta_autostart / "blaster_daemon.desktop"
-
         caminho_daemon = Path(__file__).resolve().parent / "daemon.py"
 
         conteudo_autostart = f"""[Desktop Entry]
@@ -385,7 +481,7 @@ X-GNOME-Autostart-Delay=5
             nome = macro.get("nome", "Sem nome")
             combo = macro.get("combo", [])
             comando = macro.get("comando", "")
-            
+
             if filtro and filtro not in f"{nome} {comando} {' '.join(combo)}".lower():
                 continue
 
@@ -410,7 +506,7 @@ X-GNOME-Autostart-Delay=5
             self.input_cooldown.setValue(macro.get("cooldown", 0.4))
             self.combo_atual = list(macro.get("combo", []))
             self.label_combo_visual.setText(f"Combo carregado: {self.formato_combo(self.combo_atual)}")
-            
+
             self.botao_salvar.setText("Atualizar macro")
             self.botao_salvar.setStyleSheet("background-color: #FAB387; color: #11111B; font-weight: bold;")
             self.botao_limpar_selecao.setVisible(True)
@@ -422,7 +518,7 @@ X-GNOME-Autostart-Delay=5
         self.combo_atual.clear()
         self.macro_editando_index = None
         self.gravando = False
-        self.label_combo_visual.setText("Combo atual: (clique em ‘Gravar combo’)")
+        self.label_combo_visual.setText("Combo current: (clique em 'Gravar combo')")
         self.lista_visual_macros.clearSelection()
 
         self.botao_salvar.setText("Salvar macro")
@@ -431,17 +527,40 @@ X-GNOME-Autostart-Delay=5
         self.botao_gravar.setText("Gravar combo")
         self.botao_gravar.setStyleSheet("background-color: #A6E3A1; color: #11111B; font-weight: bold;")
 
+    def injetar_comando_comunidade(self) -> None:
+        linha_selecionada = self.tabela_comunidade.currentRow()
+        if linha_selecionada < 0:
+            QMessageBox.warning(self, "Aviso", "Por favor, selecione uma linha da tabela primeiro!")
+            return
+
+        comando = self.tabela_comunidade.item(linha_selecionada, 0).text()
+        descricao = self.tabela_comunidade.item(linha_selecionada, 1).text()
+
+        self.abas.setCurrentIndex(0)
+        self.resetar_modo_criacao()
+
+        if comando == "blaster://toggle_catraca":
+            self.input_nome.setText("Trava Geral (Catraca)")
+        else:
+            nome_sugerido = descricao[:25] + ("..." if len(descricao) > 25 else "")
+            self.input_nome.setText(nome_sugerido)
+
+        self.input_comando.setText(comando)
+
     def ao_salvar_macro(self) -> None:
-        nome, comando = self.input_nome.text().strip(), self.input_comando.text().strip()
-        
+        nome = self.input_nome.text().strip()
+        comando = self.input_comando.text().strip()
+
         if not nome or not self.combo_atual or not comando:
             QMessageBox.warning(self, "Aviso", "Preencha todos os campos antes de salvar.")
             return
 
         dados = self.ler_configuracoes()
         nova_macro = {
-            "nome": nome, "combo": self.combo_atual, 
-            "comando": comando, "cooldown": round(self.input_cooldown.value(), 2)
+            "nome": nome,
+            "combo": self.combo_atual,
+            "comando": comando,
+            "cooldown": round(self.input_cooldown.value(), 2)
         }
 
         if self.macro_editando_index is not None:
@@ -458,13 +577,17 @@ X-GNOME-Autostart-Delay=5
 
     def ao_deletar_macro(self) -> None:
         item = self.lista_visual_macros.currentItem()
-        if not item: return
+        if not item:
+            return
 
         idx = item.data(Qt.ItemDataRole.UserRole)
         dados = self.ler_configuracoes()
 
         if 0 <= idx < len(dados.get("macros", [])):
-            res = QMessageBox.question(self, "Confirmar", "Deletar esta macro?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            res = QMessageBox.question(
+                self, "Confirmar", "Deletar esta macro?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
             if res == QMessageBox.StandardButton.Yes:
                 self.resetar_modo_criacao()
                 dados["macros"].pop(idx)
@@ -482,19 +605,53 @@ X-GNOME-Autostart-Delay=5
         self.combo_controles.clear()
         self.combo_controles.addItem("Selecione um dispositivo...", None)
 
+        controles_adicionados = set()
+
+        # FIX 1: Varre primeiro os caminhos persistentes estáveis por ID do udev
+        caminhos_estaveis = Path("/dev/input/by-id")
+        if caminhos_estaveis.exists():
+            for p in caminhos_estaveis.iterdir():
+                try:
+                    dev = InputDevice(str(p))
+                    caps = dev.capabilities().get(ecodes.EV_KEY, [])
+                    if ecodes.BTN_GAMEPAD in caps or "gamepad" in dev.name.lower() or "controller" in dev.name.lower():
+                        self.combo_controles.addItem(f"✨ {dev.name} [by-id]", str(p))
+                        controles_adicionados.add(dev.name)
+                except Exception:
+                    continue
+
+        # Fallback tradicional para arquivos eventX comuns do kernel
         for path in list_devices():
             try:
                 dev = InputDevice(path)
-                caps = dev.capabilities().get(ecodes.EV_KEY, [])
-                if ecodes.BTN_GAMEPAD in caps or "gamepad" in dev.name.lower():
-                    self.combo_controles.addItem(f"{dev.name} ({path})", path)
-            except Exception: pass
+                if dev.name not in controles_adicionados:
+                    caps = dev.capabilities().get(ecodes.EV_KEY, [])
+                    if ecodes.BTN_GAMEPAD in caps or "gamepad" in dev.name.lower() or "controller" in dev.name.lower():
+                        self.combo_controles.addItem(f"🎮 {dev.name} ({path})", path)
+            except Exception:
+                pass
 
         self.combo_controles.blockSignals(False)
 
+    def carregar_dispositivo_salvo(self) -> None:
+        """ FIX 2: Busca a configuração salva e injeta de volta na UI para não ter que pegar no tranco """
+        dados = self.ler_configuracoes()
+        path_salvo = dados.get("gamepad_path")
+        if path_salvo:
+            idx = self.combo_controles.findData(path_salvo)
+            if idx != -1:
+                self.combo_controles.setCurrentIndex(idx)
+
     def ao_selecionar_controle(self, index: int) -> None:
+        path = self.combo_controles.itemData(index)
         if hasattr(self, "thread_gamepad"):
-            self.thread_gamepad.alterar_dispositivo(self.combo_controles.itemData(index))
+            self.thread_gamepad.alterar_dispositivo(path)
+        
+        # FIX 3: Salva dinamicamente a alteração da combo box direto no JSON ao mudar de controle
+        if path:
+            dados = self.ler_configuracoes()
+            dados["gamepad_path"] = path
+            self.salvar_configuracoes(dados)
 
     def atualizar_status_conexao(self, texto: str) -> None:
         self.label_status.setText(f"Status: {texto}")
@@ -512,7 +669,9 @@ X-GNOME-Autostart-Delay=5
         else:
             self.botao_gravar.setText("Gravar combo")
             self.botao_gravar.setStyleSheet("background-color: #A6E3A1; color: #11111B; font-weight: bold;")
-            self.label_combo_visual.setText(f"Combo: {self.formato_combo(self.combo_atual)}" if self.combo_atual else "Combo atual: vazio")
+            self.label_combo_visual.setText(
+                f"Combo: {self.formato_combo(self.combo_atual)}" if self.combo_atual else "Combo atual: vazio"
+            )
 
     def receber_input_controle(self, nome_botao: str) -> None:
         if self.gravando and nome_botao not in self.combo_atual:
@@ -527,13 +686,9 @@ X-GNOME-Autostart-Delay=5
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    
-    # Vincula o ID da janela exatamente ao arquivo 'blaster.desktop'
-    app.setDesktopFileName("blaster") 
-    
+    app.setDesktopFileName("blaster")
     app.setStyleSheet(ESTILO_DARK)
-    
-    # Aplica o ícone globalmente em toda a aplicação
+
     if CAMINHO_ICONE_FINAL.exists():
         app.setWindowIcon(QIcon(str(CAMINHO_ICONE_FINAL)))
 

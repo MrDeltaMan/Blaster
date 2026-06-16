@@ -1,7 +1,30 @@
 #!/bin/bash
+
 # Garante que qualquer usuário do sistema possa editar os códigos do protótipo
 chmod -R 777 /opt/Blaster
+
+echo "[-] Configurando correção de boot para receptores Xbox sem fio..."
+
+# Cria o serviço do systemd diretamente no destino para corrigir o bug do receptor clone
+cat << 'EOF' > /etc/systemd/system/fix-xbox-controller.service
+[Unit]
+Description=Força a reinicialização do driver do controle de Xbox no boot
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c "sleep 3 && /sbin/rmmod xpad && /sbin/modprobe xpad"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Recarrega o systemd e ativa o serviço para os próximos boots
+systemctl daemon-reload
+systemctl enable fix-xbox-controller.service
+
 echo "========================================================"
-echo " Blaster Beta 0.1 Instalado! "
+echo " Blaster Beta 0.3 Instalado! "
 echo " O codigo fonte esta livre para edicao em: /opt/Blaster/"
+echo " [✓] Correção de boot do controle ativada com sucesso! "
 echo "========================================================"
