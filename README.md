@@ -1,8 +1,8 @@
-# Blaster - Gamepad Macro Generator (Beta 0.2)
+# Blaster - Gamepad Macro Generator (Beta 0.3)
 
-O **Blaster** é um protótipo conceitual e aberto de um motor de macros em segundo plano para gamepads e controles de videogame. Ele foi desenvolvido no Linux Mint, mas funciona perfeitamente em qualquer distribuição baseada em Debian/Ubuntu. 
+O **Blaster** é um protótipo aberto de um motor de macros em segundo plano para gamepads e controles de videogame. Ele foi desenvolvido no Linux Mint Cinnamon, em ambiente X11, e recentemente passando a funcionar em ambientes Wayland. *Deve funcionar* em qualquer distribuição baseada em Debian.
 
-Este projeto foi construído para servir de norte para quem deseja automatizar comandos do sistema operacional usando os botões do controle.
+Este projeto foi criado, inicialmente, como algo meramente pessoal, apenas para editar um script em Python que gerenciava macros de comandos diretamente pelo gamepad, sem a necessidade de simular atalhos do teclado.
 
 ---
 
@@ -12,13 +12,21 @@ Ao abrir o programa pela primeira vez, o motor (daemon) não funcionará em segu
 
 Ao abrir o programa e conectar o controle no seu computador, selecione o seu dispositivo em *"Selecione um dispositivo..."*. Caso ele não apareça de imediato, clique em *"Atualizar lista"*. Se tudo der certo, o programa mostrará em verde: **"Status: Escutando: [nome do seu controle]"**. Caso contrário, ele mostrará em vermelho: **"Status: Nenhum controle selecionado"**.
 
-### Painel Esquerdo (Gerenciamento)
+### Abas
+
+Existem duas abas principais:
+- Gerenciador
+- Lista da comunidade
+
+O primeiro é onde fica o gerenciamento de macros já existentes. Já a nova Lista da Comunidade serve para abrigar comandos prontos para uso, sem a necessidade do usuário entender de comandos do terminal, bastando um clique para a criação da macro.
+
+### Painel Esquerdo do Gerenciador (Macros Mapeadas)
 No lado **esquerdo** do gerenciador, você tem todas as suas macros criadas. Ali você pode:
 * Buscar uma macro pelo nome.
 * Clicar em uma macro existente para editá-la.
 * Deletar a macro selecionada.
 
-### Painel Direito (Editor)
+### Painel Direito di Gerenciador (Configuração da Macro)
 No lado **direito** do gerenciador, ficam as configurações da macro. Sem nenhuma macro selecionada na lista esquerda, você estará criando uma macro nova. Nesse setor você pode:
 * Nomear ou editar o nome da macro.
 * Gravar um combo de botões.
@@ -28,6 +36,15 @@ No lado **direito** do gerenciador, ficam as configurações da macro. Sem nenhu
 > 💡 **Como gravar o combo:** Ao clicar em **"Gravar Combo"** (o botão verde) e tendo o gamepad selecionado, o Blaster passa a ler todos os botões que você apertar em sequência. Para encerrar a leitura, basta clicar em **"Parar Gravação"** (o botão vermelho).
 
 Com o combo definido, basta relacioná-lo a qualquer comando do terminal do seu Linux!
+
+### Painel principal da Lista da Comunidade
+
+Na lista da comunidade há uma tabela, com 3 colunas contendo:
+- O comando em Shell, como é escrito no terminal
+- A Descrição da função, dizendo o que aquele comando faz
+- E o ambiente que aquele comando funciona (X11 ou Wayland)
+
+Logo abaixo da tabela há um botão verde "Injetar comando selecionado", que aplica uma nova macro com aquele exato comando, permitindo editá-la.
 
 ---
 
